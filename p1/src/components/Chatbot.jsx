@@ -27,9 +27,13 @@ const Chatbot = ({ selectedLanguage }) => {
     setIsLoading(true);
 
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:5000/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': token || ''
+        },
         body: JSON.stringify({ 
           message: currentInput,
           language: selectedLanguage, // Send selected language to backend
@@ -50,7 +54,7 @@ const Chatbot = ({ selectedLanguage }) => {
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       console.error("Failed to fetch from AI:", error);
-      setMessages(prev => [...prev, { text: "Sorry, I'm having trouble connecting right now. Please try again later.", sender: 'bot' }]);
+      setMessages(prev => [...prev, { text: "Sorry, I see that you've not signed in. Please try again after loggin in.", sender: 'bot' }]);
     } finally {
       setIsLoading(false);
     }

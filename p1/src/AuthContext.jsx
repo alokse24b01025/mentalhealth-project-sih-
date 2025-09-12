@@ -1,43 +1,77 @@
-import React, { useContext, useState, useEffect } from 'react';
-import { auth } from './firebase';
-import { 
-  onAuthStateChanged, 
-  signOut, 
-  signInWithEmailAndPassword 
-} from "firebase/auth";
+import React, { useContext, useState } from 'react';
 
 const AuthContext = React.createContext();
 
-// This is the function that was likely missing the 'export' keyword
 export function useAuth() {
   return useContext(AuthContext);
 }
 
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(() => {
+    // Try to load user from localStorage
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
+  });
+  const [loading, setLoading] = useState(false);
 
-  function login(email, password) {
-    return signInWithEmailAndPassword(auth, email, password);
-  }
 
-  function logout() {
-    return signOut(auth);
-  }
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, user => {
-      setCurrentUser(user);
+  // Login function: POST to /api/auth
+  async function login(email, password) {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.token) {
+        throw new Error(data.msg || 'Login failed');
+      }
+      // Save token and user info
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify({ email }));
+      setCurrentUser({ email });
+    } finally {
       setLoading(false);
-    });
+    }
+  }
 
-    return unsubscribe;
-  }, []);
+  // Register function: POST to /api/user
+  async function register(email, password) {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.token) {
+        throw new Error(data.msg || 'Registration failed');
+      }
+      // Save token and user info
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify({ email }));
+      setCurrentUser({ email });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Logout function
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setCurrentUser(null);
+  }
 
   const value = {
     currentUser,
     login,
-    logout
+    register,
+    logout,
+    loading
   };
 
   return (

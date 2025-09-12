@@ -9,7 +9,8 @@ import ResourcesPage from './pages/ResourcesPage';
 import BookingPage from './pages/BookingPage';
 import PeerSupportPage from './pages/PeerSupportPage';
 import AdminDashboard from './pages/AdminDashboard';
-import LoginPage from './pages/LoginPage'; // Import the new login page
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
 import './index.css';
 
 function App() {
@@ -23,7 +24,8 @@ function App() {
           <Route path="/booking" element={<BookingPage />} />
           <Route path="/peer-support" element={<PeerSupportPage />} />
          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/login" element={<LoginPage />} /> {/* Add the login route */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
         </Routes>
       </Router>
     </AuthProvider>

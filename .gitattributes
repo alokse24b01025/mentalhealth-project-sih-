@@ -1,0 +1,71 @@
+# Enforce LF line endings for all text files
+* text=auto eol=lf
+
+# Common source code files
+*.js text eol=lf
+*.ts text eol=lf
+*.jsx text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.html text eol=lf
+
+# Windows-specific files should keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files - never convert line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.mp4 binary
+*.mp3 binary
+
+# Node modules
+node_modules/
+backend/node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Environment variables
+.env
+backend/.env
+
+# Build directories
+dist/
+build/
+out/
+coverage/
+
+# IDE & system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Cache
+.npm/
+.yarn-cache/
+.next/
+.cache/

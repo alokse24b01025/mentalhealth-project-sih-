@@ -1,9 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// ...existing code...
+import mongoose from 'mongoose';
 
 dotenv.config();
+
+mongoose.connect(process.env.MONGO_URL)
+  .then(() => console.log('MongoDB Connected...'))
+  .catch(err => console.error(err));
 
 // Ensure the API key is present before starting
 if (!process.env.GEMINI_API_KEY) {
@@ -11,27 +16,24 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 const app = express();
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true
+}));
 app.use(express.json());
 
-app.post('/api/chat', async (req, res) => {
-  const { message } = req.body;
-  
-  // This try-catch is now for the API call itself
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(message);
-    const response = await result.response;
-    const text = response.text();
-    
-    res.json({ reply: text });
-  } catch (error) {
-    console.error("Gemini API error:", error);
-    res.status(500).json({ error: "Failed to get a response from the AI." });
-  }
-});
+// Import chat, auth, and user routes
+import chatRoute from './routes/chat.js';
+import authRoute from './routes/auth.js';
+import userRoute from './routes/user.js';
 
-const PORT = process.env.PORT || 5000;
+// Use chat route for /api/chat
+app.use('/api', chatRoute);
+// Use auth route for /api/auth
+app.use('/api/auth', authRoute);
+// Use user route for /api/user
+app.use('/api/user', userRoute);
+
+const PORT = 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
