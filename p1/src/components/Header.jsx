@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import { useAuth } from '../AuthContext';
 
@@ -7,26 +7,17 @@ const Header = () => {
   const { currentUser, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false); // State to track scroll position
+  const [isScrolled, setIsScrolled] = useState(false);
+  
   const menuRef = useRef(null);
+  const navigate = useNavigate();
 
-  // Effect to handle scroll detection
   useEffect(() => {
-    const handleScroll = () => {
-      // Set state to true if user has scrolled more than 10px, false otherwise
-      setIsScrolled(window.scrollY > 10);
-    };
-
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
-
-    // Cleanup function to remove the event listener
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-
-  // Effect to close the menu when clicking outside of it
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -34,9 +25,7 @@ const Header = () => {
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuRef]);
 
   const handleLogout = async () => {
@@ -44,76 +33,122 @@ const Header = () => {
     try {
       await logout();
       setIsMenuOpen(false);
+      navigate('/login'); 
     } catch (error) {
-      console.error("Failed to log out:", error);
+      console.error("Logout failed:", error);
     } finally {
       setIsLoggingOut(false);
     }
   };
 
-  const profileIcon = (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-    </svg>
+  const desktopLinkClass = ({ isActive }) => 
+    `px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
+      isActive 
+        ? 'text-emerald-400 bg-emerald-500/10 rounded-full' 
+        : 'text-slate-400 hover:text-white'
+    }`;
+
+  const MenuLink = ({ to, label, icon }) => (
+    <Link 
+      to={to} 
+      onClick={() => setIsMenuOpen(false)} 
+      className="flex items-center gap-x-4 px-4 py-3 rounded-2xl hover:bg-emerald-500/10 text-slate-300 hover:text-emerald-400 transition-all duration-300 group"
+    >
+      <span className="text-lg group-hover:scale-110 transition-transform">{icon}</span>
+      <span className="font-bold text-[11px] uppercase tracking-widest">{label}</span>
+    </Link>
   );
 
-  const desktopLinkClass = "px-3 py-2 rounded-md text-gray-600 hover:text-green-800 hover:bg-green-50 transition-all duration-200";
-
   return (
-    // --- UPDATED: className is now dynamic based on scroll position ---
-    <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-xl shadow-lg' : 'bg-white/70 backdrop-blur-md shadow-md'}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
+    <header className={`fixed top-0 w-full z-[100] transition-all duration-500 ${
+      isScrolled 
+        ? 'bg-slate-950/80 backdrop-blur-2xl py-4 border-b border-white/5 shadow-2xl' 
+        : 'bg-transparent py-8'
+    }`}>
+      <div className="max-w-7xl mx-auto px-6 sm:px-8">
+        <div className="flex justify-between items-center h-12">
           
-          {/* Left Side: Hamburger Menu, Logo, and Brand Name */}
-          <div className="flex items-center gap-x-4">
-            {/* Hamburger Button and Dropdown Menu (for future options) */}
+          {/* LEFT: Menu & Logo */}
+          <div className="flex items-center gap-x-8">
             <div className="relative" ref={menuRef}>
-              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 rounded-md text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+              <button 
+                onClick={() => setIsMenuOpen(!isMenuOpen)} 
+                className={`p-3 rounded-full transition-all duration-300 ${isMenuOpen ? 'bg-emerald-500 text-slate-950 rotate-90' : 'bg-white/5 text-slate-300 hover:bg-white/10'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16m-7 6h7" />
                 </svg>
               </button>
 
-              {/* Dropdown Menu Panel - with transition */}
-              <div className={`absolute top-14 left-0 w-64 bg-white/95 backdrop-blur-lg border border-gray-200 rounded-lg shadow-xl py-4 px-4 transition-all duration-300 ease-out transform ${isMenuOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
-                <p className="text-center text-gray-500">More options will be added here soon.</p>
+              <div className={`absolute top-16 left-0 w-72 bg-slate-900/95 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] shadow-2xl py-8 px-6 transition-all duration-500 transform ${isMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
+                <nav className="flex flex-col space-y-2">
+                  <p className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-4 px-4">Sanctuary Maps</p>
+                  <MenuLink to="/resources" label="Wisdom Hub" icon="📖" />
+                  <MenuLink to="/chat" label="Neural Support" icon="✨" />
+                  <MenuLink to="/peer-support" label="Safe Haven" icon="🤝" />
+                  <MenuLink to="/booking" label="Expert Sync" icon="🌿" />
+
+                  {currentUser && (
+                    <div className="pt-6 mt-6 border-t border-white/5">
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mb-4 px-4">Neural Profile</p>
+                      <MenuLink to="/settings/privacy" label="Privacy Control" icon="🛡️" />
+                      <MenuLink to="/care-alerts" label="Care Alerts" icon="🔔" />
+                      <MenuLink to="/help" label="Help Center" icon="❓" />
+                    </div>
+                  )}
+                </nav>
               </div>
             </div>
 
-            {/* Logo and Brand */}
-            <Link to="/" className="flex items-center gap-x-3">
-              <img src={logo} alt="MindWell Logo" className="h-10 w-auto" />
-              <span className="text-3xl font-bold text-green-800 hidden sm:block">Mitr</span>
+            <Link to="/" className="flex items-center gap-x-3 group">
+              <img src={logo} alt="Mitr" className="h-8 w-auto grayscale invert brightness-200 group-hover:scale-110 transition-transform duration-500" />
+              <span className="text-xl font-light text-white tracking-tighter uppercase">Mitr<span className="font-serif italic text-emerald-500 ml-1">Sanctuary</span></span>
             </Link>
           </div>
           
-          {/* Right side: Nav Links and Auth Buttons */}
-          <div className="flex items-center">
-            {/* Desktop Navigation Links - hidden on small screens */}
-            <nav className="hidden md:flex items-center space-x-2 mr-6">
-              <NavLink to="/resources" className={desktopLinkClass}>Resources</NavLink>
-              <NavLink to="/booking" className={desktopLinkClass}>Booking</NavLink>
-              <NavLink to="/chat" className={desktopLinkClass}>Chat</NavLink>
-              <NavLink to="/peer-support" className={desktopLinkClass}>Peer Support</NavLink>
-            </nav>
+          {/* CENTER: Desktop Nav */}
+          <nav className="hidden lg:flex items-center space-x-2">
+            <NavLink to="/resources" className={desktopLinkClass}>Resources</NavLink>
+            <NavLink to="/chat" className={desktopLinkClass}>Chat</NavLink>
+            <NavLink to="/peer-support" className={desktopLinkClass}>Forum</NavLink>
+            <NavLink to="/booking" className={desktopLinkClass}>Experts</NavLink>
+          </nav>
 
-            {/* Auth Buttons */}
-            <div className="flex items-center space-x-3">
-              {currentUser ? (
-                <div className="flex items-center space-x-3">
-                  <span className="text-gray-600">{profileIcon}</span>
-                  <button onClick={handleLogout} disabled={isLoggingOut} className={`text-white px-4 py-2 text-sm rounded-md transition-colors ${isLoggingOut ? 'bg-red-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}>
-                    {isLoggingOut ? '...' : 'Logout'}
-                  </button>
+          {/* RIGHT: Admin Entrance & Auth */}
+          <div className="flex items-center gap-x-6">
+            
+            {/* ADMIN ENTRANCE WITH NEURAL PULSE */}
+            {!currentUser && (
+              <Link 
+                to="/admin-gate" 
+                className="hidden sm:block text-[9px] font-black text-slate-600 uppercase tracking-[0.4em] hover:text-emerald-500 transition-all border-r border-white/10 pr-6 relative group"
+              >
+                <span className="relative z-10">Admin Access</span>
+                <span className="absolute inset-0 bg-emerald-500/20 blur-md rounded-full opacity-0 group-hover:opacity-100 animate-pulse transition-opacity duration-500"></span>
+              </Link>
+            )}
+
+            {currentUser ? (
+              <div className="flex items-center gap-x-6">
+                <div className="hidden md:flex flex-col text-right">
+                  <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest leading-none">Member</span>
+                  <span className="text-[11px] font-bold text-emerald-400 truncate max-w-[100px] mt-1 uppercase tracking-tight">
+                    {currentUser.email.split('@')[0]}
+                  </span>
                 </div>
-              ) : (
-                <div className="flex items-center space-x-3">
-                  <Link to="/login" className="text-gray-600 hover:text-green-600">{profileIcon}</Link>
-                  <Link to="/login" className="bg-green-600 text-white px-4 py-2 text-sm rounded-md hover:bg-green-700 transition-colors">Login</Link>
-                </div>
-              )}
-            </div>
+                <button 
+                  onClick={handleLogout} 
+                  disabled={isLoggingOut} 
+                  className="bg-white/5 border border-white/10 hover:bg-red-500/20 hover:border-red-500/30 text-slate-300 text-[10px] font-black px-6 py-2.5 rounded-full transition-all active:scale-95 uppercase tracking-widest"
+                >
+                  {isLoggingOut ? 'SYNCING...' : 'DISCONNECT'}
+                </button>
+              </div>
+            ) : (
+              <Link to="/login" className="bg-white text-slate-950 text-[10px] font-black px-8 py-3 rounded-full hover:bg-emerald-400 transition-all shadow-xl shadow-emerald-500/10 uppercase tracking-widest">
+                Enter
+              </Link>
+            )}
           </div>
         </div>
       </div>

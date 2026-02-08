@@ -3,7 +3,7 @@ import React from 'react';
 const Footer = () => {
   return (
     <footer className="bg-gray-800 text-white p-6 text-center">
-      <p>&copy; 2024 MindWell Digital Platform. All rights reserved.</p>
+      <p>&copy; 2024 Mitr Digital Platform. All rights reserved.</p>
     </footer>
   );
 };

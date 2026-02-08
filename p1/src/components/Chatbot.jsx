@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useAuth } from '../AuthContext'; // Import useAuth to get user info
+import { useAuth } from '../AuthContext'; 
 
 const Chatbot = ({ selectedLanguage }) => {
   const [messages, setMessages] = useState([
@@ -7,19 +7,20 @@ const Chatbot = ({ selectedLanguage }) => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showCrisisAlert, setShowCrisisAlert] = useState(false); // State for crisis alert
+  const [showCrisisAlert, setShowCrisisAlert] = useState(false);
   const messagesEndRef = useRef(null);
-  const { currentUser } = useAuth(); // Get the currently logged-in user
+  const { currentUser } = useAuth(); 
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(scrollToBottom, [messages]);
+  useEffect(scrollToBottom, [messages, isLoading]);
 
   const handleSend = async () => {
-    if (input.trim() === '') return;
+    if (input.trim() === '' || isLoading) return;
 
+    const currentUserId = currentUser?._id || currentUser?.uid || null;
     const userMessage = { text: input, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
     const currentInput = input;
@@ -36,8 +37,8 @@ const Chatbot = ({ selectedLanguage }) => {
         },
         body: JSON.stringify({ 
           message: currentInput,
-          language: selectedLanguage, // Send selected language to backend
-          userId: currentUser ? currentUser.uid : null, // Send user ID for personalization
+          language: selectedLanguage,
+          userId: currentUserId,
         }),
       });
 
@@ -45,7 +46,6 @@ const Chatbot = ({ selectedLanguage }) => {
 
       const data = await response.json();
       
-      // Check for a crisis flag from the backend
       if (data.crisisDetected) {
         setShowCrisisAlert(true);
       }
@@ -54,60 +54,94 @@ const Chatbot = ({ selectedLanguage }) => {
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       console.error("Failed to fetch from AI:", error);
-      setMessages(prev => [...prev, { text: "Sorry, I see that you've not signed in. Please try again after loggin in.", sender: 'bot' }]);
+      setMessages(prev => [...prev, { 
+        text: "I'm having trouble connecting. Please ensure you are logged in.", 
+        sender: 'bot' 
+      }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-white/70 backdrop-blur-lg border border-white/20 shadow-xl rounded-2xl p-4 min-h-0 relative">
+    /* The outer container must have a defined height for internal scrolling to work */
+    <div className="flex flex-col h-full bg-slate-900/80 backdrop-blur-xl border border-slate-800 shadow-2xl rounded-3xl p-4 relative overflow-hidden">
       
       {/* Crisis Alert Overlay */}
       {showCrisisAlert && (
-        <div className="absolute inset-0 bg-red-800/90 flex flex-col justify-center items-center z-20 rounded-2xl text-white text-center p-8">
-          <h2 className="text-3xl font-bold">Immediate Support Required</h2>
-          <p className="mt-4 text-lg">It seems like you are in distress. Please connect with a professional immediately.</p>
-          <button 
-            onClick={() => window.location.href = '/booking'} // Redirects to booking page
-            className="mt-6 bg-white text-red-800 font-bold py-3 px-8 rounded-full text-lg hover:bg-red-100 transition-colors"
-          >
-            Connect to a Counselor Now
+        <div className="absolute inset-0 bg-red-950/95 flex flex-col justify-center items-center z-50 rounded-2xl text-white text-center p-8">
+          <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mb-6 animate-pulse">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-3xl font-black tracking-tighter uppercase">You Are Not Alone</h2>
+          <p className="mt-4 text-slate-200 max-w-sm">Our AI has detected distress. Please speak with a counselor immediately.</p>
+          <button onClick={() => window.location.href = '/booking'} className="mt-8 bg-white text-red-900 font-black py-4 px-10 rounded-2xl text-lg hover:bg-red-100 transition-all shadow-xl">
+            Connect to Counselor Now
           </button>
-          <p className="mt-4 text-sm">If this is an emergency, please contact local emergency services.</p>
+          <button onClick={() => setShowCrisisAlert(false)} className="mt-4 text-red-400 text-sm font-bold hover:underline">
+            Dismiss (I'm okay now)
+          </button>
         </div>
       )}
 
-      {/* Message display area */}
-      <div className="flex-1 overflow-y-auto mb-4 p-3 space-y-4">
+      {/* SCROLLABLE AREA: 
+          - flex-1: Takes up all available space between header and footer
+          - overflow-y-auto: Enables vertical scrolling when content exceeds height
+          - min-h-0: Essential for nested flex scrolling to work properly
+      */}
+      <div className="flex-1 overflow-y-auto mb-4 p-2 space-y-6 custom-scrollbar min-h-0">
         {messages.map((msg, index) => (
-          <div key={index} className={`flex items-end max-w-[85%] ${msg.sender === 'user' ? 'self-end ml-auto' : 'self-start'}`}>
-            <div className={`p-4 rounded-2xl ${msg.sender === 'user' ? 'bg-green-600 text-white rounded-br-lg' : 'bg-gray-100 text-gray-800 rounded-bl-lg'}`}>
+          <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[80%] p-4 rounded-2xl shadow-sm text-sm leading-relaxed ${
+              msg.sender === 'user' 
+                ? 'bg-emerald-600 text-white rounded-br-none border border-emerald-500' 
+                : 'bg-slate-800 text-slate-200 rounded-bl-none border border-slate-700'
+            }`}>
               <p className="break-words">{msg.text}</p>
             </div>
           </div>
         ))}
+        
         {isLoading && (
-          <div className="flex items-end self-start">
-            <div className="p-4 rounded-2xl max-w-[80%] bg-gray-100 text-gray-800 rounded-bl-lg">
-              <p className="animate-pulse">AI is thinking...</p>
+          <div className="flex justify-start">
+            <div className="p-4 rounded-2xl bg-slate-800 border border-slate-700 flex gap-1.5 items-center">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce"></span>
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input area */}
-      <div className="flex items-center border-t border-gray-200 pt-4">
-        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSend()}
-          className="flex-1 rounded-full px-5 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
-          placeholder="Type your message..." disabled={isLoading || showCrisisAlert} />
-        <button onClick={handleSend} disabled={isLoading || showCrisisAlert}
-          className={`rounded-full p-3 ml-3 transition-colors ${isLoading || showCrisisAlert ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
-          aria-label="Send message">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" /></svg>
+      {/* FIXED INPUT AREA: Stays at bottom */}
+      <div className="flex items-center gap-3 bg-slate-950/50 p-2 rounded-2xl border border-slate-800 shrink-0">
+        <input 
+          type="text" 
+          value={input} 
+          onChange={(e) => setInput(e.target.value)} 
+          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+          className="flex-1 bg-transparent px-4 py-3 text-white placeholder-slate-600 focus:outline-none text-sm font-medium"
+          placeholder={`Speak freely in ${selectedLanguage}...`} 
+          disabled={isLoading || showCrisisAlert} 
+        />
+        <button 
+          onClick={handleSend} 
+          disabled={isLoading || showCrisisAlert || !input.trim()}
+          className={`p-3 rounded-xl transition-all shadow-lg ${
+            isLoading || showCrisisAlert || !input.trim()
+              ? 'bg-slate-800 text-slate-600 cursor-not-allowed' 
+              : 'bg-emerald-600 text-white hover:bg-emerald-500 active:scale-90 shadow-emerald-900/20'
+          }`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 rotate-90" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+          </svg>
         </button>
       </div>
+      <p className="text-center text-[9px] text-slate-600 mt-2 font-black uppercase tracking-[0.2em] shrink-0">End-to-End Encrypted</p>
     </div>
   );
 };

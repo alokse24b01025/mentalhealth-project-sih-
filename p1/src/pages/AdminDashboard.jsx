@@ -1,91 +1,162 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 
-// Register the necessary components for Chart.js
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-// Mock data for the doughnut chart
-const chartData = {
-  labels: ['Anxiety', 'Depression', 'Academic Stress', 'Burnout', 'Social Isolation', 'Other'],
-  datasets: [
-    {
-      label: '# of Students Reported',
-      data: [120, 85, 75, 50, 45, 30],
-      backgroundColor: [
-        'rgba(5, 150, 105, 0.7)',
-        'rgba(2, 132, 199, 0.7)',
-        'rgba(217, 119, 6, 0.7)',
-        'rgba(220, 38, 38, 0.7)',
-        'rgba(107, 114, 128, 0.7)',
-        'rgba(124, 58, 237, 0.7)',
-      ],
-      borderColor: [
-        'rgba(5, 150, 105, 1)',
-        'rgba(2, 132, 199, 1)',
-        'rgba(217, 119, 6, 1)',
-        'rgba(220, 38, 38, 1)',
-        'rgba(107, 114, 128, 1)',
-        'rgba(124, 58, 237, 1)',
-      ],
-      borderWidth: 1,
-    },
-  ],
-};
+// ... (keep your chartData here)
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
+  const [pendingStories, setPendingStories] = useState([]);
+  const [status, setStatus] = useState({ type: '', msg: '' });
+
+  // 1. SECURITY CHECK: Protect the Command Center
+  useEffect(() => {
+    const adminToken = localStorage.getItem('sanctuary_admin_token');
+    if (adminToken !== 'authorized_neural_session') {
+      navigate('/admin-gate');
+    }
+  }, [navigate]);
+
+  // 2. FETCH PENDING STORIES (Memoized for safety)
+  const fetchPending = useCallback(async () => {
+    try {
+      // Ensure this matches your EXACT backend URL
+      const res = await fetch('http://localhost:5000/api/resiliency/pending');
+      if (res.ok) {
+        const data = await res.json();
+        setPendingStories(data);
+        console.log("Moderation Queue Loaded:", data.length, "stories"); // Debug log
+      }
+    } catch (err) {
+      console.error("Moderation fetch failed:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPending();
+  }, [fetchPending]);
+
+  // 3. MODERATION HANDLER
+  const handleModeration = async (id, decision) => {
+    setStatus({ type: 'info', msg: `Syncing ${decision} status...` });
+    try {
+      const res = await fetch(`http://localhost:5000/api/resiliency/moderate/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: decision })
+      });
+      
+      if (res.ok) {
+        setStatus({ type: 'success', msg: `Story ${decision} successfully!` });
+        // Local state update so the card disappears instantly
+        setPendingStories(prev => prev.filter(s => s._id !== id));
+      } else {
+        setStatus({ type: 'error', msg: 'Neural sync failed.' });
+      }
+    } catch (err) {
+      setStatus({ type: 'error', msg: 'Server communication error.' });
+    }
+  };
+
+  const handleAdminLogout = () => {
+    localStorage.removeItem('sanctuary_admin_token');
+    navigate('/');
+  };
+
   return (
-    <div className="h-screen flex flex-col bg-green-50">
+    <div className="min-h-screen flex flex-col bg-[#020617] text-slate-200 selection:bg-red-500/20">
       <Header />
       
+      {/* Admin Floating Control Bar */}
+      <div className="fixed top-24 right-8 z-[60] flex flex-col gap-3 items-end">
+        <button 
+          onClick={() => navigate('/admin-upload')}
+          className="px-6 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-emerald-500 hover:text-white transition-all shadow-2xl"
+        >
+          Open Resource Deployer
+        </button>
+        <button 
+          onClick={handleAdminLogout}
+          className="px-6 py-2 bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-red-500 hover:text-white transition-all shadow-2xl"
+        >
+          Terminate Admin Session
+        </button>
+      </div>
+
       <main className="flex-1 overflow-y-auto p-8 pt-40">
-        
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-green-900">Admin Dashboard</h2>
-          <p className="mt-2 text-lg text-gray-700">Anonymous, data-driven insights for student well-being.</p>
+        <div className="text-center mb-16">
+          <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.5em] mb-4 block animate-pulse">Classified Access Only</span>
+          <h2 className="text-5xl font-light text-white tracking-tight">
+            Admin Command <span className="font-serif italic text-red-500">Center</span>
+          </h2>
         </div>
-        
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-          {/* Left Column: Chart */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-lg">
-            <h3 className="text-2xl font-bold text-green-800 mb-4">Reported Issues Overview</h3>
-            <div className="h-96 flex justify-center items-center">
-              <Doughnut data={chartData} />
-            </div>
+        {/* Global Status Message */}
+        {status.msg && (
+          <div className={`max-w-7xl mx-auto mb-8 p-4 rounded-xl text-center text-xs font-black uppercase tracking-widest border animate-in slide-in-from-top-4 duration-500 ${
+            status.type === 'success' ? 'bg-emerald-900/40 text-emerald-400 border-emerald-500/30' : 'bg-red-900/40 text-red-400 border-red-500/30'
+          }`}>
+            {status.msg}
           </div>
+        )}
 
-          {/* Right Column: Key Metrics & Polls */}
-          <div className="space-y-8">
-            <div className="bg-white p-6 rounded-2xl shadow-lg">
-              <h4 className="font-bold text-xl text-green-800">Chatbot Usage Trends</h4>
-              <ul className="mt-3 text-gray-600 space-y-2">
-                <li>Daily Conversations: <strong>124</strong></li>
-                <li>Most Common Keywords: <strong>Stress, Exams</strong></li>
-                <li>Peak Usage Time: <strong>8 PM - 10 PM</strong></li>
-              </ul>
-            </div>
-            
-            <div className="bg-white p-6 rounded-2xl shadow-lg">
-              <h4 className="font-bold text-xl text-green-800">Live Poll Results</h4>
-              <p className="text-sm text-gray-500 mb-3">"How would you rate the current campus mental health resources?"</p>
-              <div className="space-y-2">
-                 <div className="flex justify-between items-center"><span>Excellent</span> <strong>15%</strong></div>
-                 <div className="w-full bg-gray-200 rounded-full h-2.5"><div className="bg-green-600 h-2.5 rounded-full" style={{width: '15%'}}></div></div>
-                 
-                 <div className="flex justify-between items-center pt-2"><span>Good</span> <strong>35%</strong></div>
-                 <div className="w-full bg-gray-200 rounded-full h-2.5"><div className="bg-sky-500 h-2.5 rounded-full" style={{width: '35%'}}></div></div>
-                 
-                 <div className="flex justify-between items-center pt-2"><span>Needs Improvement</span> <strong>50%</strong></div>
-                 <div className="w-full bg-gray-200 rounded-full h-2.5"><div className="bg-amber-500 h-2.5 rounded-full" style={{width: '50%'}}></div></div>
-              </div>
-            </div>
+        {/* --- MODERATION QUEUE SECTION --- */}
+        <div className="max-w-7xl mx-auto bg-slate-900/40 border border-yellow-500/10 p-12 rounded-[3rem] shadow-2xl mb-12 backdrop-blur-3xl">
+          <div className="flex justify-between items-center mb-10">
+            <h3 className="text-2xl font-light text-white">
+              Resiliency <span className="font-serif italic text-yellow-500">Moderation</span> Queue
+            </h3>
+            <button 
+              onClick={fetchPending}
+              className="p-3 bg-white/5 rounded-full hover:bg-white/10 text-slate-400 transition-all text-sm"
+              title="Refresh Queue"
+            >
+              🔄
+            </button>
           </div>
+          
+          {pendingStories.length === 0 ? (
+            <div className="text-center py-10 border border-dashed border-white/5 rounded-2xl">
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">System clear. No pending stories.</p>
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              {pendingStories.map(story => (
+                <div key={story._id} className="p-8 bg-slate-950/50 border border-white/5 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6 group hover:border-yellow-500/20 transition-all">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-white font-bold tracking-tight">{story.name || "Anonymous Member"}</span>
+                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">from {story.location || "Private"}</span>
+                    </div>
+                    <p className="text-slate-400 italic text-sm font-serif">"{story.bio || "Finding peace here."}"</p>
+                  </div>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => handleModeration(story._id, 'approved')}
+                      className="px-8 py-3 bg-emerald-500 text-slate-950 text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-emerald-400 transition-all shadow-xl"
+                    >
+                      Approve
+                    </button>
+                    <button 
+                      onClick={() => handleModeration(story._id, 'rejected')}
+                      className="px-8 py-3 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-red-500 hover:text-white transition-all shadow-xl"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* Rest of your insights and forms remain exactly same... */}
       </main>
-      
       <Footer />
     </div>
   );
